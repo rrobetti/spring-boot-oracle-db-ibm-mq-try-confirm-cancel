@@ -15,6 +15,8 @@ public class OrderListener {
 
     @JmsListener(destination = "ORDERS.IN", containerFactory = "jmsListenerContainerFactory")
     public void onMessage(String orderId) {
+        // Listener-session MQ commit (ack of ORDERS.IN) is done by the transacted container
+        // only after this method returns successfully.
         orderService.process(orderId);
     }
 }

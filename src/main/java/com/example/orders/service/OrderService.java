@@ -34,13 +34,16 @@ public class OrderService {
             publisherConnection = publisherMqQueueConnectionFactory.createConnection();
             publisherSession = publisherConnection.createSession(true, Session.SESSION_TRANSACTED);
 
+            // MQPUT under publisher-session syncpoint (pending, not visible until publisherSession.commit()).
             publish(publisherSession, NOTIFY_QUEUE_1, orderId);
             publish(publisherSession, NOTIFY_QUEUE_2, orderId);
 
+            // DB local transaction commits inside persistOrder(...) before returning.
             beforeDbWork(orderId);
             orderPersistenceService.persistOrder(orderId, () -> onDbCommit(orderId));
             beforePublisherCommit(orderId);
 
+            // MQCMIT for the publisher session: pending MQPUTs become visible.
             publisherSession.commit();
         } catch (DataIntegrityViolationException duplicateOrder) {
             rollbackQuietly(publisherSession);
