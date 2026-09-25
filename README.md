@@ -43,7 +43,16 @@ The goal is to reduce the likelihood of failure in the critical commit window.
 By doing `MQPUT` operations (under publisher-session syncpoint) before the DB commit, expensive MQ path failures (network, channel, queue manager availability) are detected early while the DB transaction can still be rolled back.  
 This is a likelihood strategy, not a guarantee: if MQPUT succeeds, `MQCMIT` a few milliseconds later is likely to succeed, but it can still fail.
 
-### Try/Confirm/Cancel mapping (MQ publish side)
+### TCC Pattern is used on MQ publish side
+AI Mode conversation: what is try confirm cancel in software?what is try confirm cancel in software?Try-Confirm-Cancel (TCC) is a design pattern used in software engineering to manage distributed transactions across multiple microservices or distributed systems. It breaks a single transactional business operation into three distinct, sequential phases to ensure data consistency without locking resources for a long time.
+
+Try: The system checks for resource availability and reserves or locks the required resources. It does not commit the changes permanently but ensures that the subsequent confirm phase cannot fail due to a lack of resources.
+
+Confirm: If all services successfully complete their "Try" phase, the coordinator triggers the confirm phase. This permanently executes the operation and releases the reserved resources. This phase must be idempotent (meaning it can be safely retried multiple times if it fails initially).
+
+Cancel: If any service fails during its "Try" phase, the coordinator triggers the cancel phase across all services. This releases the reserved resources and cleans up the partial data, rolling back the system to its original state.
+
+### Try/Confirm/Cancel (TCC) mapping (MQ publish side)
 
 | TCC phase | This project | What happens |
 | --- | --- | --- |
