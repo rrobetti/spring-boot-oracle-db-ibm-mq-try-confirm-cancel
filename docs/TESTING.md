@@ -19,6 +19,11 @@ mvn verify -Dit.test=OrderServiceIT#happyPath_dbCommitsAndMessagesBecomeVisible
 - The test client connects directly to MQ, while application connections pass through Toxiproxy.
 - Toxiproxy toxics are cleaned in `@AfterEach`; verify no toxic is left active.
 
+## Most important rollback-safety test
+
+Prioritize `mqDownDuringPublish_dbRollsBack`.
+It verifies the main design goal: if MQ publish fails during the DB phase (for example network/QM outage), the operation fails immediately, the DB transaction rolls back, and publisher-session pending MQ messages are rolled back as well.
+
 ## Adding a new test
 
 - Keep tests integration-focused and run through Spring Boot context.

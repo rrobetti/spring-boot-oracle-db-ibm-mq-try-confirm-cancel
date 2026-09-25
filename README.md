@@ -24,6 +24,12 @@ flowchart LR
 
 This project intentionally avoids XA/JTA. It uses local JMS and local JDBC transactions coordinated manually in code, accepting at-least-once semantics and a crash window between DB commit and JMS commit.
 
+### Why stage MQPUT before DB commit?
+
+The goal is to reduce the likelihood of failure in the critical commit window.  
+By doing `MQPUT` operations (under publisher-session syncpoint) before the DB commit, expensive MQ path failures (network, channel, queue manager availability) are detected early while the DB transaction can still be rolled back.  
+This is a likelihood strategy, not a guarantee: if MQPUT succeeds, `MQCMIT` a few milliseconds later is likely to succeed, but it can still fail.
+
 ## Prerequisites
 
 - Java 21
@@ -62,13 +68,15 @@ All tests are integration tests.
 | `happyPath_dbCommitsAndMessagesBecomeVisible` | DB commit then message visibility and ORDERS.IN consumption |
 | `dbFails_messagesRolledBack` | DB failure rolls back outgoing publishes and incoming consume |
 | `commitOrder_dbBeforeJms` | DB commit timestamp is before outgoing message visibility |
-| `mqDownDuringPublish_dbRollsBack` | MQ failure during publish prevents DB commit and triggers redelivery |
+| `mqDownDuringPublish_dbRollsBack` | **Key safety test**: MQ publish fails before DB commit, and both DB + publisher JMS session are rolled back |
 | `mqDownDuringCommit_dbCommits_messageLost_redelivery` | Crash window: DB committed, outgoing invisible, incoming redelivered |
 | `oracleDownDuringDbWork_messagesRolledBack` | Oracle failure rolls back publisher session and incoming message |
 | `idempotency_duplicateMessage` | Duplicate order ID remains single-row and avoids duplicate notifications |
 | `idempotency_concurrentProcessOnlyOneNotificationSet` | Concurrent duplicate processing keeps one DB row and one notification set |
 
 Tests require Docker and typically take ~3-5 minutes due to container startup.
+
+The most important rollback-safety scenario is `mqDownDuringPublish_dbRollsBack`: it validates fail-fast behavior when MQ publish fails inside the DB phase, proving DB changes are not committed and pending MQ publishes are discarded.
 
 Run one test:
 
