@@ -38,9 +38,13 @@ public class OrderService {
             publish(publisherSession, NOTIFY_QUEUE_1, orderId);
             publish(publisherSession, NOTIFY_QUEUE_2, orderId);
 
+            // TEST HOOK INVOCATION: beforeDbWork(...) is intentionally a no-op in production and
+            // only used by integration tests to inject failures/timing before DB work.
             // DB local transaction commits inside persistOrder(...) before returning.
             beforeDbWork(orderId);
             orderPersistenceService.persistOrder(orderId, () -> onDbCommit(orderId));
+            // TEST HOOK INVOCATION: beforePublisherCommit(...) is intentionally a no-op in production and
+            // only used by integration tests to inject failures/timing after DB commit and before MQCMIT.
             beforePublisherCommit(orderId);
 
             // MQCMIT for the publisher session: pending MQPUTs become visible.
@@ -56,12 +60,19 @@ public class OrderService {
         }
     }
 
+    // TEST HOOK (intentional no-op in production):
+    // Integration tests use this to inject failures/timing before DB work starts.
     public void beforeDbWork(String orderId) {
     }
 
+    // TEST HOOK (intentional no-op in production):
+    // Integration tests use this to inject failures/timing after DB commit and before publisher MQCMIT.
     public void beforePublisherCommit(String orderId) {
     }
 
+    // TEST HOOK (intentional no-op in production):
+    // OrderServiceIT.commitOrder_dbBeforeJms spies this method to record the DB afterCommit timestamp
+    // and assert DB commit happens before outbound JMS message visibility.
     public void onDbCommit(String orderId) {
     }
 
