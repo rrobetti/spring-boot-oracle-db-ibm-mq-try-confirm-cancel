@@ -7,11 +7,24 @@ Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, pub
 ## Architecture
 
 ```mermaid
-flowchart LR
-    A[ORDERS.IN listener session] --> B[Manual publisher JMS session]
-    B --> C[Oracle @Transactional DB work]
-    C --> D[Publisher session commit]
-    D --> E[Listener session commit]
+sequenceDiagram
+    participant L as Listener JMS Session (ORDERS.IN)
+    participant P as Publisher JMS Session (manual, transacted)
+    participant DB as Oracle Local DB Transaction
+
+    rect rgb(236, 248, 255)
+        Note over L: OUTER TX boundary (listener session)
+        Note over P: MIDDLE TX boundary (publisher session)
+        Note over DB: INNER TX boundary (DB transaction)
+        L->>P: Open publisher session
+        P->>P: MQPUT NOTIFY.QUEUE.1 (pending)
+        P->>P: MQPUT NOTIFY.QUEUE.2 (pending)
+        P->>DB: persistOrder() in local DB TX
+        DB-->>P: COMMIT (1st)
+        P->>P: MQCMIT publisher session (2nd)
+        P-->>L: process() returns success
+        L->>L: COMMIT listener session (3rd)
+    end
 ```
 
 | Transaction | Scope | Commit order |
