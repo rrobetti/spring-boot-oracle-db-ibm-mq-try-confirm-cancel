@@ -66,6 +66,7 @@ All tests are integration tests.
 | `mqDownDuringCommit_dbCommits_messageLost_redelivery` | Crash window: DB committed, outgoing invisible, incoming redelivered |
 | `oracleDownDuringDbWork_messagesRolledBack` | Oracle failure rolls back publisher session and incoming message |
 | `idempotency_duplicateMessage` | Duplicate order ID remains single-row and avoids duplicate notifications |
+| `idempotency_concurrentProcessOnlyOneNotificationSet` | Concurrent duplicate processing keeps one DB row and one notification set |
 
 Tests require Docker and typically take ~3-5 minutes due to container startup.
 

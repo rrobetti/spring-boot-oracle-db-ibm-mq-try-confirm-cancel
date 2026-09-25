@@ -29,6 +29,9 @@ import java.time.Duration;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -231,6 +234,24 @@ class OrderServiceIT extends BaseIntegrationTest {
                 .untilAsserted(() -> assertThat(orderRepository.existsByOrderId(orderId)).isTrue());
 
         sendOrder(orderId);
+
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertThat(orderRepository.countByOrderId(orderId)).isEqualTo(1);
+            assertThat(queueDepthByBody("NOTIFY.QUEUE.1", orderId)).isLessThanOrEqualTo(1);
+            assertThat(queueDepthByBody("NOTIFY.QUEUE.2", orderId)).isLessThanOrEqualTo(1);
+        });
+    }
+
+    @Test
+    void idempotency_concurrentProcessOnlyOneNotificationSet() throws Exception {
+        String orderId = randomOrderId();
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<?> first = executor.submit(() -> orderService.process(orderId));
+            Future<?> second = executor.submit(() -> orderService.process(orderId));
+            first.get(10, TimeUnit.SECONDS);
+            second.get(10, TimeUnit.SECONDS);
+        }
 
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             assertThat(orderRepository.countByOrderId(orderId)).isEqualTo(1);

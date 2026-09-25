@@ -1,12 +1,12 @@
 package com.example.orders.service;
 
-import com.example.orders.repository.OrderRepository;
 import com.ibm.mq.jakarta.jms.MQQueueConnectionFactory;
 import jakarta.jms.Connection;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Queue;
 import jakarta.jms.Session;
 import jakarta.jms.TextMessage;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,24 +16,17 @@ public class OrderService {
     private static final String NOTIFY_QUEUE_2 = "NOTIFY.QUEUE.2";
 
     private final MQQueueConnectionFactory publisherMqQueueConnectionFactory;
-    private final OrderRepository orderRepository;
     private final OrderPersistenceService orderPersistenceService;
 
     public OrderService(
             MQQueueConnectionFactory publisherMqQueueConnectionFactory,
-            OrderRepository orderRepository,
             OrderPersistenceService orderPersistenceService
     ) {
         this.publisherMqQueueConnectionFactory = publisherMqQueueConnectionFactory;
-        this.orderRepository = orderRepository;
         this.orderPersistenceService = orderPersistenceService;
     }
 
     public void process(String orderId) {
-        if (orderRepository.existsByOrderId(orderId)) {
-            return;
-        }
-
         Connection publisherConnection = null;
         Session publisherSession = null;
 
@@ -49,6 +42,8 @@ public class OrderService {
             beforePublisherCommit(orderId);
 
             publisherSession.commit();
+        } catch (DataIntegrityViolationException duplicateOrder) {
+            rollbackQuietly(publisherSession);
         } catch (Exception exception) {
             rollbackQuietly(publisherSession);
             throw new OrderProcessingException("Failed to process orderId=" + orderId, exception);
