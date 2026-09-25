@@ -1,0 +1,17 @@
+ibm:
+  mq:
+    host: localhost
+    port: 1414
+    queue-manager: QM1
+    channel: SYSTEM.DEF.SVRCONN
+    user: app
+    password: passw0rd
+
+spring:
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521/FREEPDB1
+    username: orders
+    password: orders
+  jpa:
+    hibernate:
+      ddl-auto: update
