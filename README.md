@@ -2,7 +2,7 @@
 
 # Spring Boot 3 + IBM MQ + Oracle — Staged Syncpoint Publish with Local Transactions
 
-Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, publisher JMS, and JDBC) without XA/JTA.
+Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, publisher JMS, and JDBC) without XA/JTA, following a Try/Confirm/Cancel-style flow for MQ publish finalization.
 
 ## Architecture
 
@@ -42,6 +42,14 @@ This project intentionally avoids XA/JTA. It uses local JMS and local JDBC trans
 The goal is to reduce the likelihood of failure in the critical commit window.  
 By doing `MQPUT` operations (under publisher-session syncpoint) before the DB commit, expensive MQ path failures (network, channel, queue manager availability) are detected early while the DB transaction can still be rolled back.  
 This is a likelihood strategy, not a guarantee: if MQPUT succeeds, `MQCMIT` a few milliseconds later is likely to succeed, but it can still fail.
+
+### Try/Confirm/Cancel mapping (MQ publish side)
+
+| TCC phase | This project | What happens |
+| --- | --- | --- |
+| Try | `MQPUT` under publisher session syncpoint | Message is written as pending/invisible work |
+| Confirm | `publisherSession.commit()` (`MQCMIT`) | Pending message becomes visible on queue |
+| Cancel | `publisherSession.rollback()` (`MQBACK`) | Pending message is discarded |
 
 ## Prerequisites
 

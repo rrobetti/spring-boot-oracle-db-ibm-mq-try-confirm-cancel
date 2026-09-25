@@ -30,3 +30,11 @@ This flow provides at-least-once processing with explicit idempotency on `order_
 
 The staged sequence (MQPUT under syncpoint first, DB commit second, MQCMIT third) is designed to reduce the likelihood of MQ commit-window failures by surfacing MQ/network/QM issues early while DB is still rollback-safe.
 It does not eliminate the crash window: successful MQPUT makes immediate MQCMIT likely, but not guaranteed.
+
+## Try/Confirm/Cancel (TCC) interpretation
+
+For outbound MQ publishing, this design maps to TCC semantics:
+
+- **Try**: `MQPUT` in the transacted publisher session (pending/invisible)
+- **Confirm**: `MQCMIT` via `publisherSession.commit()` (messages become visible)
+- **Cancel**: `MQBACK` via `publisherSession.rollback()` (pending messages discarded)
