@@ -44,7 +44,7 @@ By doing `MQPUT` operations (under publisher-session syncpoint) before the DB co
 This is a likelihood strategy, not a guarantee: if MQPUT succeeds, `MQCMIT` a few milliseconds later is likely to succeed, but it can still fail.
 
 ### TCC Pattern is used on MQ publish side
-AI Mode conversation: what is try confirm cancel in software?what is try confirm cancel in software?Try-Confirm-Cancel (TCC) is a design pattern used in software engineering to manage distributed transactions across multiple microservices or distributed systems. It breaks a single transactional business operation into three distinct, sequential phases to ensure data consistency without locking resources for a long time.
+Try-Confirm-Cancel (TCC) is a design pattern used in software engineering to manage distributed transactions across multiple microservices or distributed systems. It breaks a single transactional business operation into three distinct, sequential phases to ensure data consistency without locking resources for a long time.
 
 Try: The system checks for resource availability and reserves or locks the required resources. It does not commit the changes permanently but ensures that the subsequent confirm phase cannot fail due to a lack of resources.
 
