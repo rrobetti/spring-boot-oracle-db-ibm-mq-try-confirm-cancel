@@ -8,9 +8,9 @@ Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, pub
 
 ```mermaid
 flowchart LR
-    A[ORDERS.IN listener session] --> B[Manual publisher JMS session]\
-    B --> C[Oracle @Transactional DB work]\
-    C --> D[Publisher session commit]\
+    A[ORDERS.IN listener session] --> B[Manual publisher JMS session]
+    B --> C[Oracle @Transactional DB work]
+    C --> D[Publisher session commit]
     D --> E[Listener session commit]
 ```
 
