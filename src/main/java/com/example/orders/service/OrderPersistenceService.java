@@ -25,8 +25,6 @@ public class OrderPersistenceService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishAndPersist(String orderId, PublishWork publishWork, Runnable afterCommitAction) throws Exception {
         // DB local transaction starts before publish work.
-        publishWork.run();
-        orderRepository.save(new Order(orderId));
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -34,5 +32,7 @@ public class OrderPersistenceService {
                 afterCommitAction.run();
             }
         });
+        publishWork.run();
+        orderRepository.save(new Order(orderId));
     }
 }
