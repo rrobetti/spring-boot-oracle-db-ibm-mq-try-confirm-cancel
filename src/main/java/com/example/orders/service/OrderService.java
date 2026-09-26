@@ -36,9 +36,13 @@ public class OrderService {
 
             // DB local transaction starts before staged MQPUTs.
             orderPersistenceService.publishAndPersist(orderId, () -> {
-                // MQPUT under publisher-session syncpoint (pending, not visible until publisherSession.commit()).
-                publish(publisherSession, NOTIFY_QUEUE_1, orderId);
-                publish(publisherSession, NOTIFY_QUEUE_2, orderId);
+                try {
+                    // MQPUT under publisher-session syncpoint (pending, not visible until publisherSession.commit()).
+                    publish(publisherSession, NOTIFY_QUEUE_1, orderId);
+                    publish(publisherSession, NOTIFY_QUEUE_2, orderId);
+                } catch (Exception exception) {
+                    throw new OrderProcessingException("Failed to process orderId=" + orderId, exception);
+                }
 
                 // TEST HOOK INVOCATION: beforeDbWork(...) is intentionally a no-op in production and
                 // only used by integration tests to inject failures/timing before DB persistence.
@@ -52,6 +56,9 @@ public class OrderService {
             publisherSession.commit();
         } catch (DataIntegrityViolationException duplicateOrder) {
             rollbackQuietly(publisherSession);
+        } catch (OrderProcessingException exception) {
+            rollbackQuietly(publisherSession);
+            throw exception;
         } catch (Exception exception) {
             rollbackQuietly(publisherSession);
             throw new OrderProcessingException("Failed to process orderId=" + orderId, exception);

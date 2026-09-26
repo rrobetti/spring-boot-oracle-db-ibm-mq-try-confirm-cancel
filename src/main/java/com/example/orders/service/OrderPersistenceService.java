@@ -19,11 +19,11 @@ public class OrderPersistenceService {
 
     @FunctionalInterface
     public interface PublishWork {
-        void run() throws Exception;
+        void run();
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void publishAndPersist(String orderId, PublishWork publishWork, Runnable afterCommitAction) throws Exception {
+    public void publishAndPersist(String orderId, PublishWork publishWork, Runnable afterCommitAction) {
         // DB local transaction starts before publish work.
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
