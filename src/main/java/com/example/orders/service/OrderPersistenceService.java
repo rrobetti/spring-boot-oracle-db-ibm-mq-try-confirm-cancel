@@ -17,9 +17,15 @@ public class OrderPersistenceService {
         this.orderRepository = orderRepository;
     }
 
+    @FunctionalInterface
+    public interface PublishWork {
+        void run() throws Exception;
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void persistOrder(String orderId, Runnable afterCommitAction) {
-        // DB work in its own local transaction.
+    public void publishAndPersist(String orderId, PublishWork publishWork, Runnable afterCommitAction) throws Exception {
+        // DB local transaction starts before publish work.
+        publishWork.run();
         orderRepository.save(new Order(orderId));
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
