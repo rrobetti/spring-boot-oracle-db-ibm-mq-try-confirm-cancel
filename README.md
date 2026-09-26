@@ -15,12 +15,11 @@ sequenceDiagram
     rect rgb(236, 248, 255)
         Note over L: OUTER TX boundary (listener session)
         Note over P: MIDDLE TX boundary (publisher session)
-        Note over DB: INNER TX boundary (DB transaction starts first)
+        Note over DB: INNER TX boundary
         L->>P: Open publisher session
-        P->>DB: Start local DB TX
-        P->>P: MQPUT NOTIFY.QUEUE.1 (pending, still inside DB TX scope)
-        P->>P: MQPUT NOTIFY.QUEUE.2 (pending, still inside DB TX scope)
-        P->>DB: persistOrder()
+        P->>P: MQPUT NOTIFY.QUEUE.1 (pending)
+        P->>P: MQPUT NOTIFY.QUEUE.2 (pending)
+        P->>DB: persistOrder() in local DB TX
         DB-->>P: COMMIT (1st)
         P->>P: MQCMIT publisher session (2nd)
         P-->>L: process() returns success
