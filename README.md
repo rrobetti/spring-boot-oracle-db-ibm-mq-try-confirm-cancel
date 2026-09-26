@@ -18,8 +18,8 @@ sequenceDiagram
         Note over DB: INNER TX boundary (DB transaction starts first)
         L->>P: Open publisher session
         P->>DB: Start local DB TX
-        DB->>P: MQPUT NOTIFY.QUEUE.1 (pending, still inside DB TX scope)
-        DB->>P: MQPUT NOTIFY.QUEUE.2 (pending, still inside DB TX scope)
+        P->>P: MQPUT NOTIFY.QUEUE.1 (pending, still inside DB TX scope)
+        P->>P: MQPUT NOTIFY.QUEUE.2 (pending, still inside DB TX scope)
         P->>DB: persistOrder()
         DB-->>P: COMMIT (1st)
         P->>P: MQCMIT publisher session (2nd)
