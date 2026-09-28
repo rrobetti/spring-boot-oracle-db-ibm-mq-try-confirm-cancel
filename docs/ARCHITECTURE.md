@@ -4,18 +4,20 @@
 
 ```mermaid
 sequenceDiagram
+    participant C as Spring JMS Listener Container
     participant L as Listener Session (ORDERS.IN)
     participant P as Publisher Session (MQ syncpoint)
     participant DB as Oracle Local TX
 
+    C->>L: start transacted listener session
     L->>P: create transacted session
     P->>P: MQPUT NOTIFY.QUEUE.1 (pending)
     P->>P: MQPUT NOTIFY.QUEUE.2 (pending)
-    P->>DB: @Transactional save order
+    P->>DB: @Transactional(REQUIRES_NEW) save order
     DB-->>P: commit
     P->>P: MQCMIT (messages visible)
     P-->>L: return
-    L->>L: commit ORDERS.IN consume
+    C->>L: commit ORDERS.IN consume
 ```
 
 ## Failure modes
