@@ -8,14 +8,16 @@ Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, pub
 
 ```mermaid
 sequenceDiagram
+    participant C as Spring JMS Listener Container
     participant L as Listener JMS Session (ORDERS.IN)
     participant P as Publisher JMS Session (manual, transacted)
     participant DB as Oracle Local DB Transaction
 
     rect rgb(236, 248, 255)
-        Note over L: OUTER TX boundary (listener session)
-        Note over P: MIDDLE TX boundary (publisher session)
-        Note over DB: INNER TX boundary (DB transaction)
+        Note over C,L: TX 1 - listener session started by the container
+        Note over P: TX 2 - publisher session started inside OrderService.process()
+        Note over DB: TX 3 - DB transaction started by persistOrder(REQUIRES_NEW)
+        C->>L: Deliver ORDERS.IN message
         L->>P: Open publisher session
         P->>P: MQPUT NOTIFY.QUEUE.1 (pending)
         P->>P: MQPUT NOTIFY.QUEUE.2 (pending)
@@ -23,15 +25,15 @@ sequenceDiagram
         DB-->>P: COMMIT (1st)
         P->>P: MQCMIT publisher session (2nd)
         P-->>L: process() returns success
-        L->>L: COMMIT listener session (3rd)
+        C->>L: COMMIT listener session / ack ORDERS.IN (3rd)
     end
 ```
 
 | Transaction | Scope | Commit order |
 | --- | --- | --- |
-| Listener session (outer) | Consume `ORDERS.IN` | 3 |
-| Publisher session (middle) | Publish to `NOTIFY.QUEUE.1` and `NOTIFY.QUEUE.2` under syncpoint | 2 |
-| JDBC transaction (inner) | Persist order row | 1 |
+| Listener session (container-managed outer TX) | Consume `ORDERS.IN` and acknowledge only after `onMessage()` succeeds | 3 |
+| Publisher session (service-managed middle TX) | Publish to `NOTIFY.QUEUE.1` and `NOTIFY.QUEUE.2` under syncpoint | 2 |
+| JDBC transaction (`REQUIRES_NEW` inner TX) | Persist order row in `persistOrder(...)` | 1 |
 
 ### Why not XA?
 
