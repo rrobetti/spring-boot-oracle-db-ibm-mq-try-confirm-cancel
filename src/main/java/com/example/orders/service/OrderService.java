@@ -3,6 +3,7 @@ package com.example.orders.service;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.jms.core.JmsTemplate;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
@@ -23,7 +24,7 @@ public class OrderService {
         this.orderPersistenceService = orderPersistenceService;
     }
 
-    @Transactional("mqOnlyTM")
+    @Transactional(transactionManager = "mqOnlyTM", propagation = Propagation.REQUIRES_NEW)
     public void process(String orderId) {
         try {
             // MQPUTs use the transaction-bound publisher session and commit when this method returns.

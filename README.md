@@ -32,7 +32,7 @@ sequenceDiagram
 | Transaction | Scope | Commit order |
 | --- | --- | --- |
 | Listener session (container-managed outer TX) | Consume `ORDERS.IN` and acknowledge only after `onMessage()` succeeds | 3 |
-| Publisher session (`mqOnlyTM`) | Publish to `NOTIFY.QUEUE.1` and `NOTIFY.QUEUE.2` under syncpoint | 2 |
+| Publisher session (`mqOnlyTM`, `REQUIRES_NEW`) | Publish to `NOTIFY.QUEUE.1` and `NOTIFY.QUEUE.2` under syncpoint | 2 |
 | JDBC transaction (`dbOnlyTM`, `REQUIRES_NEW` inner TX) | Persist order row in `persistOrder(...)` | 1 |
 
 ### Why not XA?
