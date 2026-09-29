@@ -5,9 +5,6 @@ import com.example.orders.repository.OrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-
 @Service
 public class OrderPersistenceService {
 
@@ -18,15 +15,8 @@ public class OrderPersistenceService {
     }
 
     @Transactional(transactionManager = "dbOnlyTM", propagation = Propagation.REQUIRES_NEW)
-    public void persistOrder(String orderId, Runnable afterCommitAction) {
+    public void persistOrder(String orderId) {
         // DB work in its own local transaction.
         orderRepository.save(new Order(orderId));
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                // Runs after DB commit has completed.
-                afterCommitAction.run();
-            }
-        });
     }
 }
