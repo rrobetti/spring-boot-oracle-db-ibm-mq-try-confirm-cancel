@@ -37,6 +37,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 class OrderServiceIT extends BaseIntegrationTest {
 
@@ -139,6 +141,22 @@ class OrderServiceIT extends BaseIntegrationTest {
             assertThat(queueDepth("NOTIFY.QUEUE.1")).isEqualTo(0);
             assertThat(queueDepth("NOTIFY.QUEUE.2")).isEqualTo(0);
         });
+
+        mqProxy.setConnectionCut(false);
+    }
+
+    @Test
+    void mqDownDuringPublish_dbRecordAbsent_messagesLost() {
+        String orderId = randomOrderId();
+
+        mqProxy.setConnectionCut(true);
+
+        assertThatThrownBy(() -> orderService.process(orderId)).isInstanceOf(RuntimeException.class);
+
+        verify(spyOrderPersistenceService, never()).persistOrder(orderId);
+        assertThat(orderRepository.existsByOrderId(orderId)).isFalse();
+        assertThat(queueDepth("NOTIFY.QUEUE.1")).isEqualTo(0);
+        assertThat(queueDepth("NOTIFY.QUEUE.2")).isEqualTo(0);
 
         mqProxy.setConnectionCut(false);
     }
