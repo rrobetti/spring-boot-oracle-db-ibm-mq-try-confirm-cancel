@@ -8,7 +8,7 @@ import org.springframework.orm.jpa.JpaTransactionManager;
 @Configuration
 public class DatabaseTransactionConfig {
 
-    @Bean("dbOnlyTM")
+    @Bean({"dbOnlyTM", "transactionManager"})
     JpaTransactionManager dbOnlyTransactionManager(EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);
     }
