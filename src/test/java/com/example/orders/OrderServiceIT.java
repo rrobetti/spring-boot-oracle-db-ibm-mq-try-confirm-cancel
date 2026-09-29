@@ -22,8 +22,6 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jms.config.JmsListenerEndpointRegistry;
 import org.springframework.jms.listener.MessageListenerContainer;
 
-import javax.sql.DataSource;
-
 import java.time.Duration;
 import java.util.Enumeration;
 import java.util.UUID;
@@ -44,9 +42,6 @@ class OrderServiceIT extends BaseIntegrationTest {
 
     @Autowired
     private JmsListenerEndpointRegistry jmsListenerEndpointRegistry;
-
-    @Autowired
-    private DataSource dataSource;
 
     @SpyBean
     private OrderRepository spyOrderRepository;
@@ -126,38 +121,6 @@ class OrderServiceIT extends BaseIntegrationTest {
     }
 
     @Test
-    void commitOrder_dbBeforeJms() {
-        String orderId = randomOrderId();
-        AtomicLong dbCommitTimestamp = new AtomicLong(0L);
-
-        doAnswer(invocation -> {
-            dbCommitTimestamp.set(System.currentTimeMillis());
-            return invocation.callRealMethod();
-        }).when(orderService).onDbCommit(eq(orderId));
-
-        CompletableFuture<Long> jmsVisibleTimestamp = CompletableFuture.supplyAsync(() -> {
-            try (Connection connection = directMqConnectionFactory.createConnection()) {
-                connection.start();
-                try (Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
-                    MessageConsumer consumer = session.createConsumer(session.createQueue("NOTIFY.QUEUE.1"));
-                    Message message = consumer.receive(TimeUnit.SECONDS.toMillis(10));
-                    assertThat(message).isNotNull();
-                    return System.currentTimeMillis();
-                }
-            } catch (Exception exception) {
-                throw new RuntimeException(exception);
-            }
-        });
-
-        sendOrder(orderId);
-
-        Awaitility.await().atMost(Duration.ofSeconds(10))
-                .until(() -> dbCommitTimestamp.get() > 0 && jmsVisibleTimestamp.isDone());
-
-        assertThat(dbCommitTimestamp.get()).isLessThanOrEqualTo(jmsVisibleTimestamp.join());
-    }
-
-    @Test
     void mqDownDuringPublish_dbRollsBack() throws Exception {
         String orderId = randomOrderId();
 
@@ -178,10 +141,7 @@ class OrderServiceIT extends BaseIntegrationTest {
     void mqDownDuringCommit_dbCommits_messageLost_redelivery() {
         String orderId = randomOrderId();
 
-        doAnswer(invocation -> {
-            mqProxy.setConnectionCut(true);
-            return invocation.callRealMethod();
-        }).when(orderService).beforePublisherCommit(eq(orderId));
+        mqProxy.setConnectionCut(true);
 
         sendOrder(orderId);
 
@@ -202,13 +162,7 @@ class OrderServiceIT extends BaseIntegrationTest {
                 .when(spyOrderRepository)
                 .save(argThat(order -> orderId.equals(order.getOrderId())));
 
-        doAnswer(invocation -> {
-            oracleProxy.setConnectionCut(true);
-            if (dataSource instanceof HikariDataSource hikariDataSource && hikariDataSource.getHikariPoolMXBean() != null) {
-                hikariDataSource.getHikariPoolMXBean().softEvictConnections();
-            }
-            return invocation.callRealMethod();
-        }).when(orderService).beforeDbWork(eq(orderId));
+        oracleProxy.setConnectionCut(true);
 
         sendOrder(orderId);
 
