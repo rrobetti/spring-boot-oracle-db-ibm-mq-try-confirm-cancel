@@ -2,6 +2,7 @@ package com.example.orders;
 
 import com.example.orders.model.Order;
 import com.example.orders.repository.OrderRepository;
+import com.example.orders.service.OrderPersistenceService;
 import com.example.orders.service.OrderService;
 import com.ibm.mq.jakarta.jms.MQQueueConnectionFactory;
 import com.ibm.msg.client.jakarta.wmq.WMQConstants;
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 
 class OrderServiceIT extends BaseIntegrationTest {
@@ -48,6 +50,9 @@ class OrderServiceIT extends BaseIntegrationTest {
 
     @SpyBean
     private OrderService orderService;
+
+    @SpyBean
+    private OrderPersistenceService spyOrderPersistenceService;
 
     private MQQueueConnectionFactory directMqConnectionFactory;
 
@@ -138,10 +143,13 @@ class OrderServiceIT extends BaseIntegrationTest {
     }
 
     @Test
-    void mqDownDuringCommit_dbCommits_messageLost_redelivery() {
+    void mqDownDuringCommit_dbCommits_messageLost_redelivery() throws Exception {
         String orderId = randomOrderId();
 
-        mqProxy.setConnectionCut(true);
+        doAnswer(invocation -> {
+            mqProxy.setConnectionCut(true);
+            return invocation.callRealMethod();
+        }).when(spyOrderPersistenceService).persistOrder(orderId);
 
         sendOrder(orderId);
 
