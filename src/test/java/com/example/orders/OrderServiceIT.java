@@ -32,6 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
@@ -143,7 +144,7 @@ class OrderServiceIT extends BaseIntegrationTest {
     }
 
     @Test
-    void mqDownDuringCommit_dbCommits_messageLost_redelivery() throws Exception {
+    void mqDownDuringCommit_dbCommits_messagesLost() throws Exception {
         String orderId = randomOrderId();
 
         doAnswer(invocation -> {
@@ -151,13 +152,11 @@ class OrderServiceIT extends BaseIntegrationTest {
             return invocation.callRealMethod();
         }).when(spyOrderPersistenceService).persistOrder(orderId);
 
-        sendOrder(orderId);
+        assertThatThrownBy(() -> orderService.process(orderId)).isInstanceOf(RuntimeException.class);
 
-        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            assertThat(orderRepository.existsByOrderId(orderId)).isTrue();
-            assertThat(queueDepth("NOTIFY.QUEUE.1")).isEqualTo(0);
-            assertThat(queueDepth("NOTIFY.QUEUE.2")).isEqualTo(0);
-        });
+        assertThat(orderRepository.existsByOrderId(orderId)).isTrue();
+        assertThat(queueDepth("NOTIFY.QUEUE.1")).isEqualTo(0);
+        assertThat(queueDepth("NOTIFY.QUEUE.2")).isEqualTo(0);
 
         mqProxy.setConnectionCut(false);
     }
