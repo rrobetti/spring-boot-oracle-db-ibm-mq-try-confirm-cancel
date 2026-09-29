@@ -17,7 +17,7 @@ public class OrderPersistenceService {
         this.orderRepository = orderRepository;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(transactionManager = "dbOnlyTM", propagation = Propagation.REQUIRES_NEW)
     public void persistOrder(String orderId, Runnable afterCommitAction) {
         // DB work in its own local transaction.
         orderRepository.save(new Order(orderId));

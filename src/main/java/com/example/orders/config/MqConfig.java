@@ -6,9 +6,11 @@ import jakarta.jms.ConnectionFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jms.connection.JmsTransactionManager;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.config.JmsListenerContainerFactory;
 import org.springframework.jms.annotation.EnableJms;
+import org.springframework.jms.core.JmsTemplate;
 
 @Configuration
 @EnableJms
@@ -20,6 +22,18 @@ public class MqConfig {
         factory.setConnectionFactory(connectionFactory);
         factory.setSessionTransacted(true);
         return factory;
+    }
+
+    @Bean("mqOnlyTM")
+    JmsTransactionManager mqOnlyTransactionManager(MQQueueConnectionFactory publisherMqQueueConnectionFactory) {
+        return new JmsTransactionManager(publisherMqQueueConnectionFactory);
+    }
+
+    @Bean
+    JmsTemplate publisherJmsTemplate(MQQueueConnectionFactory publisherMqQueueConnectionFactory) {
+        JmsTemplate jmsTemplate = new JmsTemplate(publisherMqQueueConnectionFactory);
+        jmsTemplate.setSessionTransacted(true);
+        return jmsTemplate;
     }
 
     @Bean
