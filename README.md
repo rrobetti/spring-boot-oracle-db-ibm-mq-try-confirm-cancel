@@ -2,7 +2,7 @@
 
 # Spring Boot 3 + IBM MQ + Oracle — Staged Syncpoint Publish with Local Transactions
 
-Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, publisher JMS, and JDBC) without XA/JTA, following a Try/Confirm/Cancel-style flow for MQ publish finalization.
+Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, publisher JMS, and JDBC) without XA/JTA, using separate named transaction managers for publisher MQ and Oracle and following a Try/Confirm/Cancel-style flow for MQ publish finalization.
 
 ## Architecture
 
@@ -10,12 +10,12 @@ Spring Boot sample implementing a 3-local-transaction pattern (listener JMS, pub
 sequenceDiagram
     participant C as Spring JMS Listener Container
     participant L as Listener JMS Session (ORDERS.IN)
-    participant P as Publisher JMS Session (manual, transacted)
+    participant P as Publisher JMS Session (mqOnlyTM, transacted)
     participant DB as Oracle Local DB Transaction
 
     rect rgb(236, 248, 255)
         Note over C,L: TX 1 - listener session started by the container
-        Note over P: TX 2 - publisher session started inside OrderService.process()
+        Note over P: TX 2 - publisher session managed by mqOnlyTM around OrderService.process()
         Note over DB: TX 3 - DB transaction started by persistOrder(REQUIRES_NEW)
         C->>L: Deliver ORDERS.IN message
         L->>P: Open publisher session
@@ -32,12 +32,12 @@ sequenceDiagram
 | Transaction | Scope | Commit order |
 | --- | --- | --- |
 | Listener session (container-managed outer TX) | Consume `ORDERS.IN` and acknowledge only after `onMessage()` succeeds | 3 |
-| Publisher session (service-managed middle TX) | Publish to `NOTIFY.QUEUE.1` and `NOTIFY.QUEUE.2` under syncpoint | 2 |
-| JDBC transaction (`REQUIRES_NEW` inner TX) | Persist order row in `persistOrder(...)` | 1 |
+| Publisher session (`mqOnlyTM`) | Publish to `NOTIFY.QUEUE.1` and `NOTIFY.QUEUE.2` under syncpoint | 2 |
+| JDBC transaction (`dbOnlyTM`, `REQUIRES_NEW` inner TX) | Persist order row in `persistOrder(...)` | 1 |
 
 ### Why not XA?
 
-This project intentionally avoids XA/JTA. It uses local JMS and local JDBC transactions coordinated manually in code, accepting at-least-once semantics and a crash window between DB commit and JMS commit.
+This project intentionally avoids XA/JTA. It uses separate local JMS and JDBC transactions, accepting at-least-once semantics and a crash window between DB commit and JMS commit.
 
 ### Why stage MQPUT before DB commit?
 
@@ -59,8 +59,8 @@ Cancel: If any service fails during its "Try" phase, the coordinator triggers th
 | TCC phase | This project | What happens |
 | --- | --- | --- |
 | Try | `MQPUT` under publisher session syncpoint | Message is written as pending/invisible work |
-| Confirm | `publisherSession.commit()` (`MQCMIT`) | Pending message becomes visible on queue |
-| Cancel | `publisherSession.rollback()` (`MQBACK`) | Pending message is discarded |
+| Confirm | Completion of the `mqOnlyTM` transaction (`MQCMIT`) | Pending message becomes visible on queue |
+| Cancel | Rollback of the `mqOnlyTM` transaction (`MQBACK`) | Pending message is discarded |
 
 ## Prerequisites
 
