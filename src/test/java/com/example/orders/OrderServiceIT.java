@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.config.JmsListenerEndpointRegistry;
 import org.springframework.jms.listener.MessageListenerContainer;
 
@@ -53,6 +54,9 @@ class OrderServiceIT extends BaseIntegrationTest {
 
     @SpyBean
     private OrderService orderService;
+
+    @SpyBean
+    private JmsTemplate publisherJmsTemplate;
 
     @SpyBean
     private OrderPersistenceService spyOrderPersistenceService;
@@ -149,16 +153,17 @@ class OrderServiceIT extends BaseIntegrationTest {
     void mqDownDuringPublish_dbRecordAbsent_messagesLost() {
         String orderId = randomOrderId();
 
-        mqProxy.setConnectionCut(true);
+        doThrow(new IllegalStateException("MQ unavailable"))
+                .when(publisherJmsTemplate).convertAndSend("NOTIFY.QUEUE.1", orderId);
 
         assertThatThrownBy(() -> orderService.process(orderId)).isInstanceOf(RuntimeException.class);
 
+        verify(publisherJmsTemplate).convertAndSend("NOTIFY.QUEUE.1", orderId);
+        verify(publisherJmsTemplate, never()).convertAndSend("NOTIFY.QUEUE.2", orderId);
         verify(spyOrderPersistenceService, never()).persistOrder(orderId);
         assertThat(orderRepository.existsByOrderId(orderId)).isFalse();
         assertThat(queueDepth("NOTIFY.QUEUE.1")).isEqualTo(0);
         assertThat(queueDepth("NOTIFY.QUEUE.2")).isEqualTo(0);
-
-        mqProxy.setConnectionCut(false);
     }
 
     @Test
